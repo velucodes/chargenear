@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Contact ChargeNear or suggest a new EV charging station location.">
+  <title>Contact | ChargeNear</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="site">
+    <div class="container">
+      <a class="logo" href="index.html">Charge<span>Near</span></a>
+      <nav aria-label="Main">
+        <ul>
+          <li><a href="index.html">Home</a></li>
+          <li><a href="stations.html">Stations</a></li>
+          <li><a href="book.html">Book Slot</a></li>
+          <li><a href="pricing.html">Pricing</a></li>
+          <li><a href="contact.html">Contact</a></li>
+        </ul>
+      </nav>
+      <button class="ghost" id="themeToggle" type="button">Dark mode</button>
+    </div>
+  </header>
+
+  <main>
+    <section>
+      <div class="container" style="max-width:820px;">
+        <h1>Contact and station suggestions</h1>
+        <p class="muted">Send feedback or suggest a location where a new charger is needed.</p>
+
+        <form id="contactForm" novalidate>
+          <div class="form-row">
+            <div class="field">
+              <label for="cName">Name</label>
+              <input id="cName" type="text" maxlength="40" autocomplete="name">
+              <div class="error"></div>
+            </div>
+            <div class="field">
+              <label for="cEmail">Email</label>
+              <input id="cEmail" type="email" autocomplete="email">
+              <div class="error"></div>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="field">
+              <label for="cType">Message type</label>
+              <select id="cType">
+                <option value="">Select</option>
+                <option value="feedback">General feedback</option>
+                <option value="suggest">Suggest a station location</option>
+                <option value="issue">Report a faulty charger</option>
+              </select>
+              <div class="error"></div>
+            </div>
+            <div class="field" id="pinWrap" style="display:none;">
+              <label for="cPin">Pincode of location</label>
+              <input id="cPin" type="text" inputmode="numeric" maxlength="6" placeholder="6 digits">
+              <div class="error"></div>
+            </div>
+          </div>
+          <div class="field">
+            <label for="cMsg">Message <span class="hint" id="cnt">(0/300)</span></label>
+            <textarea id="cMsg" rows="5" maxlength="300"></textarea>
+            <div class="error"></div>
+          </div>
+          <button type="submit">Send message</button>
+          <div id="cAlert" class="alert"></div>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site">
+    <div class="container">&copy; <span id="year">2026</span> ChargeNear. Built for U21CS501 Web Technologies.</div>
+  </footer>
+
+  <script src="js/data.js"></script>
+  <script src="js/validate.js"></script>
+  <script src="js/main.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      const form = document.getElementById("contactForm");
+      const n = document.getElementById("cName");
+      const e = document.getElementById("cEmail");
+      const t = document.getElementById("cType");
+      const p = document.getElementById("cPin");
+      const pw = document.getElementById("pinWrap");
+      const m = document.getElementById("cMsg");
+      const cnt = document.getElementById("cnt");
+      const box = document.getElementById("cAlert");
+
+      function needsPin() { return t.value === "suggest" || t.value === "issue"; }
+
+      const checks = {
+        n: function () { return setFieldState(n, Validators.name(n.value) ? "" : "Enter a valid name."); },
+        e: function () { return setFieldState(e, Validators.email(e.value) ? "" : "Enter a valid email address."); },
+        t: function () { return setFieldState(t, t.value ? "" : "Choose a message type."); },
+        p: function () {
+          if (!needsPin()) return true;
+          return setFieldState(p, Validators.pincode(p.value) ? "" : "Enter a valid 6-digit pincode.");
+        },
+        m: function () {
+          const len = m.value.trim().length;
+          return setFieldState(m, len >= 10 ? "" : "Message must be at least 10 characters.");
+        }
+      };
+
+      t.addEventListener("change", function () {
+        pw.style.display = needsPin() ? "flex" : "none";
+        if (!needsPin()) {
+          p.value = "";
+          pw.classList.remove("valid", "invalid");
+          pw.querySelector(".error").textContent = "";
+        }
+        checks.t();
+      });
+      n.addEventListener("blur", checks.n);
+      e.addEventListener("blur", checks.e);
+      p.addEventListener("keyup", function () { p.value = p.value.replace(/\D/g, ""); checks.p(); });
+      m.addEventListener("keyup", function () {
+        cnt.textContent = "(" + m.value.length + "/300)";
+        checks.m();
+      });
+
+      form.addEventListener("submit", function (ev) {
+        ev.preventDefault();
+        const results = [checks.n(), checks.e(), checks.t(), checks.p(), checks.m()];
+        if (results.indexOf(false) !== -1) {
+          showAlert(box, "fail", "Please correct the highlighted fields.");
+          return;
+        }
+        showAlert(box, "success", "Thank you, " + n.value.trim() + ". Your message has been recorded (demo only, nothing is sent to a server).");
+        form.reset();
+        clearFormState(form);
+        pw.style.display = "none";
+        cnt.textContent = "(0/300)";
+      });
+    });
+  </script>
+</body>
+</html>

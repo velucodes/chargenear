@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="ChargeNear helps EV owners in Tamil Nadu find compatible charging stations and book slots online.">
+  <title>ChargeNear | EV Charging Station Finder</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="site">
+    <div class="container">
+      <a class="logo" href="index.html">Charge<span>Near</span></a>
+      <nav aria-label="Main">
+        <ul>
+          <li><a href="index.html">Home</a></li>
+          <li><a href="stations.html">Stations</a></li>
+          <li><a href="book.html">Book Slot</a></li>
+          <li><a href="pricing.html">Pricing</a></li>
+          <li><a href="contact.html">Contact</a></li>
+        </ul>
+      </nav>
+      <button class="ghost" id="themeToggle" type="button">Dark mode</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="container">
+        <h1>Find an EV charger near you, and book it before you drive.</h1>
+        <p>ChargeNear lists compatible charging stations across Coimbatore and nearby towns, with live availability, connector types and per-unit pricing.</p>
+        <form class="search-row" id="quickSearch" novalidate style="background:transparent;border:0;box-shadow:none;padding:0;">
+          <div class="field" style="flex:1 1 220px;margin:0;">
+            <label class="visually-hidden" for="pin">Pincode</label>
+            <input id="pin" name="pincode" type="text" inputmode="numeric" maxlength="6" placeholder="Enter 6-digit pincode (e.g. 641012)" autocomplete="postal-code">
+            <div class="error" style="color:#ffd6d2;"></div>
+          </div>
+          <div><button type="submit">Find stations</button></div>
+        </form>
+      </div>
+    </section>
+
+    <section>
+      <div class="container">
+        <div class="stats card">
+          <div><div class="num" id="statTotal">0</div><div class="muted">Stations listed</div></div>
+          <div><div class="num" id="statFree">0</div><div class="muted">Available now</div></div>
+          <div><div class="num" id="statFast">0</div><div class="muted">Fast chargers</div></div>
+          <div><div class="num" id="statCity">0</div><div class="muted">Cities covered</div></div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="container">
+        <h2>Why ChargeNear?</h2>
+        <div class="grid">
+          <article class="card"><h3>Connector match</h3><p>Pick your vehicle type and we only show chargers your connector fits: CCS2, CHAdeMO, Type 2 or Bharat AC-001.</p></article>
+          <article class="card"><h3>Slot booking</h3><p>Reserve a time slot in advance with simple, validated forms so you never queue at a busy station.</p></article>
+          <article class="card"><h3>Cost estimate</h3><p>Enter your battery size and charge levels to see the expected cost and time before you plug in.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="container">
+        <h2>Industry context</h2>
+        <p class="muted">Electric mobility is one of the fastest growing parts of India's clean energy sector. Public charging infrastructure is still sparse, and drivers often cannot tell which station is free, fast or compatible. ChargeNear is a web-based charging network directory and booking front end aimed at that gap.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site">
+    <div class="container">&copy; <span id="year">2026</span> ChargeNear. Built for U21CS501 Web Technologies, KPR Institute of Engineering and Technology.</div>
+  </footer>
+
+  <script src="js/data.js"></script>
+  <script src="js/validate.js"></script>
+  <script src="js/main.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      // live stats via DOM
+      document.getElementById("statTotal").textContent = STATIONS.length;
+      document.getElementById("statFree").textContent = STATIONS.filter(function (s) { return s.available; }).length;
+      document.getElementById("statFast").textContent = STATIONS.filter(function (s) { return s.speed === "fast"; }).length;
+      document.getElementById("statCity").textContent = new Set(STATIONS.map(function (s) { return s.city; })).size;
+
+      // pincode validation, then redirect with a query string (shows URL parsing in the review)
+      const form = document.getElementById("quickSearch");
+      const pin = document.getElementById("pin");
+      const err = form.querySelector(".error");
+
+      pin.addEventListener("keyup", function () {
+        pin.value = pin.value.replace(/\D/g, "");
+        err.textContent = "";
+      });
+
+      form.addEventListener("submit", function (e) {
+        e.preventDefault();
+        if (!Validators.pincode(pin.value)) {
+          err.textContent = "Enter a valid 6-digit pincode (cannot start with 0).";
+          pin.focus();
+          return;
+        }
+        window.location.href = "stations.html?pincode=" + encodeURIComponent(pin.value) + "#results";
+      });
+    });
+  </script>
+</body>
+</html>

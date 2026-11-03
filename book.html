@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Book an EV charging slot with ChargeNear. Validated booking form.">
+  <title>Book a Slot | ChargeNear</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="site">
+    <div class="container">
+      <a class="logo" href="index.html">Charge<span>Near</span></a>
+      <nav aria-label="Main">
+        <ul>
+          <li><a href="index.html">Home</a></li>
+          <li><a href="stations.html">Stations</a></li>
+          <li><a href="book.html">Book Slot</a></li>
+          <li><a href="pricing.html">Pricing</a></li>
+          <li><a href="contact.html">Contact</a></li>
+        </ul>
+      </nav>
+      <button class="ghost" id="themeToggle" type="button">Dark mode</button>
+    </div>
+  </header>
+
+  <main>
+    <section>
+      <div class="container" style="max-width:820px;">
+        <h1>Book a charging slot</h1>
+        <p class="muted">Fields are checked as you type and again on submit. Operating hours: 06:00 to 22:00. Bookings open up to 7 days ahead.</p>
+
+        <form id="bookForm" novalidate>
+          <div class="form-row">
+            <div class="field">
+              <label for="name">Full name</label>
+              <input id="name" name="name" type="text" maxlength="40" autocomplete="name">
+              <div class="error"></div>
+            </div>
+            <div class="field">
+              <label for="mobile">Mobile number</label>
+              <input id="mobile" name="mobile" type="tel" inputmode="numeric" maxlength="10" placeholder="10 digits, starts with 6-9" autocomplete="tel">
+              <div class="error"></div>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="field">
+              <label for="email">Email</label>
+              <input id="email" name="email" type="email" autocomplete="email">
+              <div class="error"></div>
+            </div>
+            <div class="field">
+              <label for="vehicleNo">Vehicle number</label>
+              <input id="vehicleNo" name="vehicleNo" type="text" maxlength="13" placeholder="TN66AB1234" style="text-transform:uppercase;">
+              <span class="hint">Format: TN66AB1234</span>
+              <div class="error"></div>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="field">
+              <label for="vehicleType">Vehicle type</label>
+              <select id="vehicleType" name="vehicleType">
+                <option value="">Select</option>
+                <option value="bike">Two-wheeler</option>
+                <option value="car">Car</option>
+              </select>
+              <div class="error"></div>
+            </div>
+            <div class="field">
+              <label for="connector">Connector</label>
+              <select id="connector" name="connector" disabled>
+                <option value="">Select vehicle type first</option>
+              </select>
+              <div class="error"></div>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="field">
+              <label for="station">Station</label>
+              <select id="station" name="station">
+                <option value="">Select</option>
+              </select>
+              <div class="error"></div>
+            </div>
+            <div class="field">
+              <label for="duration">Duration (minutes)</label>
+              <input id="duration" name="duration" type="number" min="15" max="240" step="15" placeholder="15 to 240">
+              <div class="error"></div>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="field">
+              <label for="date">Date</label>
+              <input id="date" name="date" type="date">
+              <div class="error"></div>
+            </div>
+            <div class="field">
+              <label for="time">Start time</label>
+              <input id="time" name="time" type="time">
+              <div class="error"></div>
+            </div>
+          </div>
+
+          <div class="field" style="flex-direction:row;align-items:flex-start;gap:.6rem;">
+            <input id="agree" name="agree" type="checkbox" style="margin-top:.35rem;">
+            <div>
+              <label for="agree" style="margin:0;">I agree to the charging terms and the cancellation policy.</label>
+              <div class="error"></div>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:.7rem;flex-wrap:wrap;">
+            <button type="submit">Confirm booking</button>
+            <button type="reset" class="ghost" id="resetForm">Clear</button>
+          </div>
+          <div id="formAlert" class="alert"></div>
+        </form>
+
+        <div id="receipt" class="result" style="display:none;"></div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site">
+    <div class="container">&copy; <span id="year">2026</span> ChargeNear. Built for U21CS501 Web Technologies.</div>
+  </footer>
+
+  <script src="js/data.js"></script>
+  <script src="js/validate.js"></script>
+  <script src="js/main.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      const form = document.getElementById("bookForm");
+      const f = {
+        name: document.getElementById("name"),
+        mobile: document.getElementById("mobile"),
+        email: document.getElementById("email"),
+        vehicleNo: document.getElementById("vehicleNo"),
+        vehicleType: document.getElementById("vehicleType"),
+        connector: document.getElementById("connector"),
+        station: document.getElementById("station"),
+        duration: document.getElementById("duration"),
+        date: document.getElementById("date"),
+        time: document.getElementById("time"),
+        agree: document.getElementById("agree")
+      };
+      const alertBox = document.getElementById("formAlert");
+      const receipt = document.getElementById("receipt");
+
+      // date picker limits: today to +7 days
+      function iso(d) {
+        const m = String(d.getMonth() + 1).padStart(2, "0");
+        const day = String(d.getDate()).padStart(2, "0");
+        return d.getFullYear() + "-" + m + "-" + day;
+      }
+      const today = new Date();
+      const max = new Date(); max.setDate(max.getDate() + 7);
+      f.date.min = iso(today);
+      f.date.max = iso(max);
+
+      // fill stations
+      STATIONS.forEach(function (s) {
+        const o = document.createElement("option");
+        o.value = s.id;
+        o.textContent = s.name + " (" + s.city + ")";
+        f.station.appendChild(o);
+      });
+
+      // preselect station from ?station=ID
+      const pre = new URLSearchParams(window.location.search).get("station");
+      if (pre && STATIONS.some(function (s) { return String(s.id) === pre; })) f.station.value = pre;
+
+      function stationById(id) {
+        return STATIONS.find(function (s) { return String(s.id) === String(id); });
+      }
+
+      // dependent dropdown: connector depends on vehicle type AND station
+      function refreshConnectors() {
+        const type = f.vehicleType.value;
+        const st = stationById(f.station.value);
+        f.connector.innerHTML = "";
+        if (!type) {
+          f.connector.disabled = true;
+          f.connector.innerHTML = '<option value="">Select vehicle type first</option>';
+          return;
+        }
+        let allowed = CONNECTOR_RULES[type];
+        if (st) allowed = allowed.filter(function (c) { return st.connectors.indexOf(c) !== -1; });
+        f.connector.disabled = false;
+        const first = document.createElement("option");
+        first.value = ""; first.textContent = allowed.length ? "Select" : "No compatible connector here";
+        f.connector.appendChild(first);
+        allowed.forEach(function (c) {
+          const o = document.createElement("option");
+          o.value = c; o.textContent = c;
+          f.connector.appendChild(o);
+        });
+      }
+
+      // individual validators return an error message or ""
+      const rules = {
+        name: function () { return Validators.name(f.name.value) ? "" : "Enter a valid name (letters only, 2-40 characters)."; },
+        mobile: function () { return Validators.mobile(f.mobile.value) ? "" : "Enter a 10-digit mobile number starting with 6, 7, 8 or 9."; },
+        email: function () { return Validators.email(f.email.value) ? "" : "Enter a valid email address."; },
+        vehicleNo: function () { return Validators.vehicleNumber(f.vehicleNo.value) ? "" : "Use format like TN66AB1234."; },
+        vehicleType: function () { return f.vehicleType.value ? "" : "Select a vehicle type."; },
+        connector: function () {
+          if (!f.vehicleType.value) return "Select vehicle type first.";
+          if (!f.connector.value) return "Select a compatible connector.";
+          if (CONNECTOR_RULES[f.vehicleType.value].indexOf(f.connector.value) === -1) return "This connector does not fit your vehicle type.";
+          const st = stationById(f.station.value);
+          if (st && st.connectors.indexOf(f.connector.value) === -1) return "This station does not have that connector.";
+          return "";
+        },
+        station: function () {
+          if (!f.station.value) return "Select a station.";
+          const st = stationById(f.station.value);
+          if (st && f.vehicleType.value && st.vehicles.indexOf(f.vehicleType.value) === -1) return "This station does not support your vehicle type.";
+          return "";
+        },
+        duration: function () {
+          if (!Validators.numberBetween(f.duration.value, 15, 240)) return "Enter between 15 and 240 minutes.";
+          if (Number(f.duration.value) % 15 !== 0) return "Duration must be in steps of 15 minutes.";
+          return "";
+        },
+        date: function () {
+          if (!f.date.value) return "Pick a date.";
+          if (!Validators.futureOrToday(f.date.value)) return "Date cannot be in the past.";
+          if (!Validators.withinDays(f.date.value, 7)) return "Bookings open only 7 days ahead.";
+          return "";
+        },
+        time: function () {
+          if (!f.time.value) return "Pick a start time.";
+          if (!Validators.withinHours(f.time.value, OPEN_HOUR, CLOSE_HOUR)) return "Station is open 06:00 to 22:00.";
+          if (f.date.value && Validators.futureOrToday(f.date.value) && !Validators.notPastTime(f.date.value, f.time.value)) return "That time has already passed today.";
+          // booking must end before closing
+          if (f.duration.value && Validators.numberBetween(f.duration.value, 15, 240)) {
+            const parts = f.time.value.split(":").map(Number);
+            const end = parts[0] * 60 + parts[1] + Number(f.duration.value);
+            if (end > CLOSE_HOUR * 60) return "Session would end after closing time (22:00).";
+          }
+          return "";
+        },
+        agree: function () { return f.agree.checked ? "" : "You must accept the terms."; }
+      };
+
+      function check(key) {
+        return setFieldState(f[key], rules[key]());
+      }
+
+      // live validation (keyup / change / blur)
+      f.mobile.addEventListener("keyup", function () { f.mobile.value = f.mobile.value.replace(/\D/g, ""); check("mobile"); });
+      f.vehicleNo.addEventListener("keyup", function () { f.vehicleNo.value = f.vehicleNo.value.toUpperCase(); check("vehicleNo"); });
+      ["name", "email"].forEach(function (k) { f[k].addEventListener("blur", function () { check(k); }); });
+      f.name.addEventListener("keyup", function () { check("name"); });
+      f.duration.addEventListener("input", function () { check("duration"); if (f.time.value) check("time"); });
+      f.date.addEventListener("change", function () { check("date"); if (f.time.value) check("time"); });
+      f.time.addEventListener("change", function () { check("time"); });
+      f.agree.addEventListener("change", function () { check("agree"); });
+
+      f.vehicleType.addEventListener("change", function () {
+        refreshConnectors();
+        check("vehicleType");
+        if (f.station.value) check("station");
+      });
+      f.station.addEventListener("change", function () {
+        refreshConnectors();
+        check("station");
+      });
+      f.connector.addEventListener("change", function () { check("connector"); });
+
+      form.addEventListener("submit", function (e) {
+        e.preventDefault();
+        const order = ["name", "mobile", "email", "vehicleNo", "vehicleType", "station", "connector", "duration", "date", "time", "agree"];
+        let firstBad = null;
+        order.forEach(function (k) {
+          if (!check(k) && !firstBad) firstBad = f[k];
+        });
+        receipt.style.display = "none";
+
+        if (firstBad) {
+          showAlert(alertBox, "fail", "Please fix the highlighted fields and try again.");
+          firstBad.focus();
+          return;
+        }
+
+        const st = stationById(f.station.value);
+        const kwh = Math.round((st.kw * Number(f.duration.value) / 60) * 10) / 10;
+        const cost = Math.round(kwh * st.price);
+        const ref = "CN" + Date.now().toString().slice(-6);
+
+        showAlert(alertBox, "success", "Booking confirmed. Your reference is " + ref + ".");
+        receipt.innerHTML = "";
+        const lines = [
+          ["Reference", ref],
+          ["Name", f.name.value.trim()],
+          ["Vehicle", f.vehicleNo.value.replace(/[\s-]/g, "").toUpperCase() + " (" + (f.vehicleType.value === "car" ? "Car" : "Two-wheeler") + ")"],
+          ["Station", st.name + ", " + st.city],
+          ["Connector", f.connector.value],
+          ["Slot", f.date.value + " at " + f.time.value + " for " + f.duration.value + " min"],
+          ["Max energy (at full power)", kwh + " kWh"],
+          ["Max estimated cost", "Rs " + cost]
+        ];
+        lines.forEach(function (row) {
+          const p = document.createElement("p");
+          p.style.margin = "0 0 .3rem";
+          const strong = document.createElement("strong");
+          strong.textContent = row[0] + ": ";
+          p.appendChild(strong);
+          p.appendChild(document.createTextNode(row[1]));
+          receipt.appendChild(p);
+        });
+        receipt.style.display = "block";
+        if (receipt.scrollIntoView) receipt.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      });
+
+      form.addEventListener("reset", function () {
+        setTimeout(function () {
+          clearFormState(form);
+          refreshConnectors();
+          alertBox.className = "alert";
+          receipt.style.display = "none";
+        }, 0);
+      });
+
+      refreshConnectors();
+    });
+  </script>
+</body>
+</html>

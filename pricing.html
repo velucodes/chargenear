@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="ChargeNear tariffs and an EV charging cost and time calculator.">
+  <title>Pricing | ChargeNear</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="site">
+    <div class="container">
+      <a class="logo" href="index.html">Charge<span>Near</span></a>
+      <nav aria-label="Main">
+        <ul>
+          <li><a href="index.html">Home</a></li>
+          <li><a href="stations.html">Stations</a></li>
+          <li><a href="book.html">Book Slot</a></li>
+          <li><a href="pricing.html">Pricing</a></li>
+          <li><a href="contact.html">Contact</a></li>
+        </ul>
+      </nav>
+      <button class="ghost" id="themeToggle" type="button">Dark mode</button>
+    </div>
+  </header>
+
+  <main>
+    <section>
+      <div class="container">
+        <h1>Pricing</h1>
+        <p class="muted">Sample tariffs for this demo. Rates are illustrative.</p>
+        <div style="overflow-x:auto;">
+          <table>
+            <caption class="visually-hidden">Charging tariff by charger type</caption>
+            <thead>
+              <tr><th scope="col">Charger type</th><th scope="col">Typical power</th><th scope="col">Rate (Rs per kWh)</th><th scope="col">Best for</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>AC slow (Bharat AC-001)</td><td>3 kW</td><td>10</td><td>Two-wheelers, overnight</td></tr>
+              <tr><td>AC (Type 2)</td><td>7 to 22 kW</td><td>11 to 15</td><td>Cars, workplace charging</td></tr>
+              <tr><td>DC fast (CCS2 / CHAdeMO)</td><td>50 to 120 kW</td><td>18 to 22</td><td>Highway and quick top-ups</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="container" style="max-width:820px;">
+        <h2>Charging cost and time calculator</h2>
+        <form id="calcForm" novalidate>
+          <div class="form-row">
+            <div class="field">
+              <label for="battery">Battery capacity (kWh)</label>
+              <input id="battery" type="number" min="1" max="150" step="0.1" placeholder="e.g. 30.2">
+              <div class="error"></div>
+            </div>
+            <div class="field">
+              <label for="power">Charger power (kW)</label>
+              <input id="power" type="number" min="1" max="150" step="0.1" placeholder="e.g. 50">
+              <div class="error"></div>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="field">
+              <label for="from">Current charge (%)</label>
+              <input id="from" type="number" min="0" max="99" placeholder="e.g. 20">
+              <div class="error"></div>
+            </div>
+            <div class="field">
+              <label for="to">Target charge (%)</label>
+              <input id="to" type="number" min="1" max="100" placeholder="e.g. 80">
+              <div class="error"></div>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="field">
+              <label for="rate">Rate (Rs per kWh)</label>
+              <input id="rate" type="number" min="1" max="100" step="0.5" placeholder="e.g. 18">
+              <div class="error"></div>
+            </div>
+            <div class="field">
+              <label for="gst">Add 18% GST</label>
+              <select id="gst"><option value="no">No</option><option value="yes">Yes</option></select>
+            </div>
+          </div>
+          <button type="button" id="calcBtn">Calculate now</button>
+          <p class="hint">Results also update live as you type valid values.</p>
+        </form>
+        <div id="out" class="result" aria-live="polite" style="display:none;"></div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site">
+    <div class="container">&copy; <span id="year">2026</span> ChargeNear. Built for U21CS501 Web Technologies.</div>
+  </footer>
+
+  <script src="js/data.js"></script>
+  <script src="js/validate.js"></script>
+  <script src="js/main.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      const el = {
+        battery: document.getElementById("battery"),
+        power: document.getElementById("power"),
+        from: document.getElementById("from"),
+        to: document.getElementById("to"),
+        rate: document.getElementById("rate"),
+        gst: document.getElementById("gst")
+      };
+      const out = document.getElementById("out");
+
+      function validateAll(showErrors) {
+        const errs = {};
+        if (!Validators.numberBetween(el.battery.value, 1, 150)) errs.battery = "Enter a capacity between 1 and 150 kWh.";
+        if (!Validators.numberBetween(el.power.value, 1, 150)) errs.power = "Enter a power between 1 and 150 kW.";
+        if (!Validators.numberBetween(el.from.value, 0, 99)) errs.from = "Enter a value from 0 to 99.";
+        if (!Validators.numberBetween(el.to.value, 1, 100)) errs.to = "Enter a value from 1 to 100.";
+        if (!errs.from && !errs.to && Number(el.to.value) <= Number(el.from.value)) errs.to = "Target must be higher than current charge.";
+        if (!Validators.numberBetween(el.rate.value, 1, 100)) errs.rate = "Enter a rate between 1 and 100.";
+
+        ["battery", "power", "from", "to", "rate"].forEach(function (k) {
+          if (errs[k]) {
+            if (showErrors || el[k].value !== "") setFieldState(el[k], errs[k]);
+          } else {
+            setFieldState(el[k], "");
+          }
+        });
+        return Object.keys(errs).length === 0;
+      }
+
+      function calculate() {
+        const ok = validateAll(true);
+        if (!ok) { out.style.display = "none"; return; }
+        const kwh = Number(el.battery.value) * (Number(el.to.value) - Number(el.from.value)) / 100;
+        // simple model: 90% charging efficiency, constant power
+        const grid = kwh / 0.9;
+        const hours = grid / Number(el.power.value);
+        let cost = grid * Number(el.rate.value);
+        if (el.gst.value === "yes") cost *= 1.18;
+        const mins = Math.round(hours * 60);
+        const h = Math.floor(mins / 60), m = mins % 60;
+
+        out.innerHTML = "";
+        const rows = [
+          ["Energy added to battery", kwh.toFixed(1) + " kWh"],
+          ["Energy drawn from the grid (90% efficiency)", grid.toFixed(1) + " kWh"],
+          ["Estimated time", (h > 0 ? h + " h " : "") + m + " min"],
+          ["Estimated cost", "Rs " + cost.toFixed(2)]
+        ];
+        rows.forEach(function (r) {
+          const p = document.createElement("p");
+          p.style.margin = "0 0 .3rem";
+          const s = document.createElement("strong");
+          s.textContent = r[0] + ": ";
+          p.appendChild(s);
+          p.appendChild(document.createTextNode(r[1]));
+          out.appendChild(p);
+        });
+        out.style.display = "block";
+      }
+
+      document.getElementById("calcBtn").addEventListener("click", calculate);
+      Object.keys(el).forEach(function (k) {
+        function live() {
+          // live update only when everything is valid, so the person is not nagged mid-typing
+          if (validateAll(false)) calculate();
+          else out.style.display = "none"; // never leave a stale result on screen
+        }
+        el[k].addEventListener("input", live);
+        el[k].addEventListener("change", live);
+      });
+    });
+  </script>
+</body>
+</html>

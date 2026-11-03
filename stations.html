@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Browse and filter EV charging stations by connector, speed, city and availability.">
+  <title>Stations | ChargeNear</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="site">
+    <div class="container">
+      <a class="logo" href="index.html">Charge<span>Near</span></a>
+      <nav aria-label="Main">
+        <ul>
+          <li><a href="index.html">Home</a></li>
+          <li><a href="stations.html">Stations</a></li>
+          <li><a href="book.html">Book Slot</a></li>
+          <li><a href="pricing.html">Pricing</a></li>
+          <li><a href="contact.html">Contact</a></li>
+        </ul>
+      </nav>
+      <button class="ghost" id="themeToggle" type="button">Dark mode</button>
+    </div>
+  </header>
+
+  <main>
+    <section>
+      <div class="container">
+        <h1>Charging stations</h1>
+        <p class="muted">Filters update instantly without reloading the page.</p>
+
+        <div class="filters" id="filters">
+          <div class="field">
+            <label for="fPin">Pincode</label>
+            <input id="fPin" type="text" inputmode="numeric" maxlength="6" placeholder="e.g. 641012">
+            <div class="error"></div>
+          </div>
+          <div class="field">
+            <label for="fCity">City</label>
+            <select id="fCity"><option value="">All cities</option></select>
+          </div>
+          <div class="field">
+            <label for="fConn">Connector</label>
+            <select id="fConn">
+              <option value="">Any</option>
+              <option>CCS2</option>
+              <option>CHAdeMO</option>
+              <option>Type 2</option>
+              <option>Bharat AC-001</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="fSpeed">Speed</label>
+            <select id="fSpeed">
+              <option value="">Any</option>
+              <option value="fast">Fast (DC)</option>
+              <option value="slow">Slow (AC)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="fSort">Sort by</label>
+            <select id="fSort">
+              <option value="name">Name</option>
+              <option value="price-asc">Price: low to high</option>
+              <option value="price-desc">Price: high to low</option>
+              <option value="kw-desc">Power: high to low</option>
+            </select>
+          </div>
+          <div class="field" style="flex-direction:row;align-items:center;gap:.5rem;">
+            <input id="fAvail" type="checkbox">
+            <label for="fAvail" style="margin:0;">Available only</label>
+          </div>
+          <div class="field"><button type="button" class="ghost" id="resetBtn">Reset</button></div>
+        </div>
+
+        <p id="count" class="muted" aria-live="polite"></p>
+        <div id="results" class="grid"></div>
+        <p id="empty" class="alert fail">No stations match your filters. Try removing one.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site">
+    <div class="container">&copy; <span id="year">2026</span> ChargeNear. Built for U21CS501 Web Technologies.</div>
+  </footer>
+
+  <script src="js/data.js"></script>
+  <script src="js/validate.js"></script>
+  <script src="js/main.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      const els = {
+        pin: document.getElementById("fPin"),
+        city: document.getElementById("fCity"),
+        conn: document.getElementById("fConn"),
+        speed: document.getElementById("fSpeed"),
+        sort: document.getElementById("fSort"),
+        avail: document.getElementById("fAvail"),
+        reset: document.getElementById("resetBtn"),
+        list: document.getElementById("results"),
+        count: document.getElementById("count"),
+        empty: document.getElementById("empty")
+      };
+
+      // fill city dropdown from data
+      Array.from(new Set(STATIONS.map(function (s) { return s.city; }))).sort().forEach(function (c) {
+        const o = document.createElement("option");
+        o.value = c; o.textContent = c;
+        els.city.appendChild(o);
+      });
+
+      // read ?pincode=...&connector=... from the URL (URL parsing)
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("pincode")) els.pin.value = params.get("pincode");
+      if (params.get("connector")) els.conn.value = params.get("connector");
+      if (params.get("speed")) els.speed.value = params.get("speed");
+
+      function render() {
+        // validate pincode filter (only when something is typed)
+        const pinVal = els.pin.value.trim();
+        let pinOk = true;
+        if (pinVal.length > 0 && pinVal.length < 6) {
+          setFieldState(els.pin, "Pincode must be 6 digits");
+          pinOk = false;
+        } else if (pinVal.length === 6 && !Validators.pincode(pinVal)) {
+          setFieldState(els.pin, "Invalid pincode");
+          pinOk = false;
+        } else if (pinVal.length === 6) {
+          setFieldState(els.pin, "");
+        } else {
+          clearFormState(els.pin.closest(".field").parentElement);
+        }
+
+        let rows = STATIONS.filter(function (s) {
+          if (pinOk && pinVal.length === 6 && s.pincode !== pinVal) return false;
+          if (els.city.value && s.city !== els.city.value) return false;
+          if (els.conn.value && s.connectors.indexOf(els.conn.value) === -1) return false;
+          if (els.speed.value && s.speed !== els.speed.value) return false;
+          if (els.avail.checked && !s.available) return false;
+          return true;
+        });
+
+        const sorters = {
+          "name": function (a, b) { return a.name.localeCompare(b.name); },
+          "price-asc": function (a, b) { return a.price - b.price; },
+          "price-desc": function (a, b) { return b.price - a.price; },
+          "kw-desc": function (a, b) { return b.kw - a.kw; }
+        };
+        rows.sort(sorters[els.sort.value]);
+
+        els.list.innerHTML = "";
+        rows.forEach(function (s) {
+          const card = document.createElement("article");
+          card.className = "card";
+
+          const h = document.createElement("h3");
+          h.textContent = s.name;
+          card.appendChild(h);
+
+          const loc = document.createElement("p");
+          loc.className = "muted";
+          loc.style.margin = "0 0 .5rem";
+          loc.textContent = s.city + " - " + s.pincode;
+          card.appendChild(loc);
+
+          const badges = document.createElement("div");
+          const status = document.createElement("span");
+          status.className = "badge " + (s.available ? "free" : "busy");
+          status.textContent = s.available ? "Available" : "Busy";
+          badges.appendChild(status);
+          const sp = document.createElement("span");
+          sp.className = "badge " + (s.speed === "fast" ? "fast" : "");
+          sp.textContent = (s.speed === "fast" ? "Fast " : "Slow ") + s.kw + " kW";
+          badges.appendChild(sp);
+          card.appendChild(badges);
+
+          const conn = document.createElement("p");
+          conn.style.margin = ".6rem 0 .2rem";
+          conn.textContent = "Connectors: " + s.connectors.join(", ");
+          card.appendChild(conn);
+
+          const price = document.createElement("p");
+          price.style.margin = "0 0 .8rem";
+          price.textContent = "Rs " + s.price + " per kWh";
+          card.appendChild(price);
+
+          const a = document.createElement("a");
+          a.className = "btn";
+          a.href = "book.html?station=" + s.id;
+          a.textContent = s.available ? "Book a slot" : "Book later slot";
+          card.appendChild(a);
+
+          els.list.appendChild(card);
+        });
+
+        els.count.textContent = rows.length + " of " + STATIONS.length + " stations shown";
+        els.empty.classList.toggle("show", rows.length === 0);
+      }
+
+      els.pin.addEventListener("keyup", function () {
+        els.pin.value = els.pin.value.replace(/\D/g, "");
+        render();
+      });
+      [els.city, els.conn, els.speed, els.sort, els.avail].forEach(function (el) {
+        el.addEventListener("change", render);
+      });
+      els.reset.addEventListener("click", function () {
+        els.pin.value = ""; els.city.value = ""; els.conn.value = "";
+        els.speed.value = ""; els.sort.value = "name"; els.avail.checked = false;
+        render();
+      });
+
+      render();
+    });
+  </script>
+</body>
+</html>
